@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}{{ shop_name }} · SHOP{% endblock %}
+{% block content %}
+<section class="hero container">
+  <div class="brand-banner">
+    <div class="brand-banner-copy"><span class="eyebrow">프리미엄 디지털 스토어</span><h1>ALL IN ONE <em>DEAL</em></h1><p>모든 디지털 상품을 한 곳에서 간편하게.</p></div>
+    <div class="brand-banner-crown">♛</div>
+    <div class="hero-orb orb1"></div><div class="hero-orb orb2"></div><div class="hero-spark s1">✦</div><div class="hero-spark s2">✧</div>
+  </div>
+  <div class="hero-bottom"><div><span class="eyebrow">올인원 디지털 스토어</span><h2>원하는 상품을 빠르게 찾아보세요.</h2><p>상단 검색창에서 상품명, 카테고리, 설명으로 바로 검색할 수 있습니다.</p></div><div class="hero-actions"><a class="btn primary" href="{{ url_for('shop') }}">전체 상품 보기 →</a>{% if not discord_user %}<a class="btn ghost" href="{{ url_for('oauth_start') }}">디스코드 로그인</a>{% endif %}</div></div>
+</section>
+
+<section class="container quick-grid">
+  {% for c,label,desc,cls in [('OTT','OTT','넷플릭스 · 디즈니+ · 스포티파이','ott'),('Discord','디스코드','니트로 · 부스트 · 장식','discord'),('Roblox','로블록스','로벅스 · 디지털 상품','roblox'),('VALORANT','발로란트','VP · 랜덤 계정','valorant')] %}
+  <a class="quick-card {{ cls }}" href="{{ url_for('shop', category=c) }}"><span class="quick-icon {{ cls }}"></span><div><b>{{ label }}</b><small>{{ desc }}</small></div><span class="quick-arrow">→</span></a>
+  {% endfor %}
+</section>
+
+{% for cat in category_order %}
+{% set group = grouped[cat] %}
+{% if group %}
+<section class="container category-section" id="{{ cat|lower }}">
+  <div class="section-head"><div><span class="eyebrow">카테고리</span><h2>{{ category_name(cat) }}</h2><p>{{ 'OTT 서비스를 한 곳에서.' if cat=='OTT' else '디스코드 관련 상품을 확인하세요.' if cat=='Discord' else '로블록스 관련 상품을 확인하세요.' if cat=='Roblox' else '발로란트 관련 상품을 확인하세요.' }}</p></div><a href="{{ url_for('shop', category=cat) }}">전체 보기 →</a></div>
+  <div class="product-grid compact">{% for p in group %}
+    <article class="product-card">
+      <a href="{{ url_for('product_detail', product_id=p.id) }}" class="product-media {{ p.category|lower }}">
+        <img src="{{ product_image(p) }}" alt="{{ product_name(p) }}" loading="lazy">
+        <span class="tag">{{ category_name(p.category) }}</span>
+        <span class="media-glow"></span>
+      </a>
+      <div class="product-content"><div><h3>{{ product_name(p) }}</h3><p>{{ p.subtitle }}</p></div><div class="product-bottom"><strong>{% if p.price is not none %}{{ '{:,}'.format(p.price) }}원{% else %}<span class="pending">가격 준비중</span>{% endif %}</strong><span class="go">상세보기 →</span></div></div>
+    </article>
+  {% endfor %}</div>
+</section>
+{% endif %}
+{% endfor %}
+
+<section class="container info-strip"><div class="info-glow"></div><span class="info-mark">♛</span><div><b>ALL IN ONE DEAL</b><p>상품 · 가격 · 재고는 오픈 전에 자유롭게 설정할 수 있습니다.</p></div><a href="{{ url_for('shop') }}">SHOP으로 이동 →</a></section>
+{% endblock %}

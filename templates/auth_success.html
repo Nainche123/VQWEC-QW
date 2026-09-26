@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}디스코드 로그인 완료 · {{ shop_name }}{% endblock %}
+{% block content %}
+<section class="auth-success-wrap container">
+  <div class="auth-success-card">
+    <div class="success-gif-frame"><img src="{{ url_for('static', filename='media/verify-success.gif') }}" alt="로그인 완료"></div>
+    <div class="eyebrow">디스코드 로그인 COMPLETE</div>
+    <h1>✅ 웹 로그인이 완료되었습니다!</h1>
+    <p>사이트 로그인은 완료되었습니다. <b>서버 인증 역할은 웹사이트에서 자동으로 지급되지 않습니다.</b></p>
+    <div class="verification-status {% if server_verified %}verified{% endif %}">
+      <span class="status-icon">{% if server_verified %}✓{% else %}!{% endif %}</span>
+      <div><strong>{% if server_verified %}디스코드 서버 인증 완료{% else %}디스코드 서버 인증 대기{% endif %}</strong><small>{% if server_verified %}인증패널에서 이미 인증된 상태입니다.{% else %}디스코드 서버의 인증패널에서 직접 인증해야 인증 역할을 받을 수 있습니다.{% endif %}</small></div>
+    </div>
+    <div class="success-progress"><span></span></div>
+    <small>잠시 후 상점으로 이동합니다.</small>
+    <a class="btn primary full" href="{{ next_path }}">상점으로 이동하기 →</a>
+  </div>
+</section>
+<script>setTimeout(function(){ window.location.href = {{ next_path|tojson }}; }, 3000);</script>
+{% endblock %}

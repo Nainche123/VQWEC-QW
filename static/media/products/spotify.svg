@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Spotify</title><desc id="desc">Spotify product artwork</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d2b1c"/><stop offset=".55" stop-color="#1db954"/><stop offset="1" stop-color="#0a0813"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-opacity=".32"/></filter>
+  </defs>
+  <rect width="800" height="520" rx="42" fill="url(#bg)"/>
+  <circle cx="620" cy="95" r="150" fill="url(#glow)"/>
+  <circle cx="160" cy="420" r="170" fill="#d946ef" opacity=".06"/>
+  <g>
+  <circle cx="400" cy="250" r="145" fill="#151b18" stroke="#8ff0b5" stroke-opacity=".25" stroke-width="4"/>
+  <path d="M308 216c62-20 132-16 183 12" fill="none" stroke="#8df4b4" stroke-width="17" stroke-linecap="round"/>
+  <path d="M320 258c57-15 117-11 160 12" fill="none" stroke="#72e99f" stroke-width="14" stroke-linecap="round"/>
+  <path d="M334 297c43-10 86-7 121 10" fill="none" stroke="#58dd8d" stroke-width="11" stroke-linecap="round"/>
+  <text x="400" y="425" text-anchor="middle" fill="#d9ffe7" font-size="34" font-family="Arial, sans-serif" font-weight="700">SPOTIFY PREMIUM</text>
+</g>
+</svg>

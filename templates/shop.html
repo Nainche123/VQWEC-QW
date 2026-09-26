@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}SHOP · {{ shop_name }}{% endblock %}
+{% block content %}
+<section class="container page-head shop-head">
+  <div>
+    <span class="eyebrow">상품 검색</span>
+    <h1>{% if category!='all' %}{{ category }}{% else %}전체 상품{% endif %}</h1>
+    <p>{% if q %}<b class="search-highlight">“{{ q }}”</b> 검색 결과 · {{ products|length }}개{% else %}원하는 카테고리를 선택하거나 상품명을 검색해보세요.{% endif %}</p>
+  </div>
+  <div class="shop-tools">
+    <form class="mobile-search" action="{{ url_for('shop') }}" method="get" role="search">
+      <span>⌕</span><input name="q" value="{{ q }}" placeholder="상품명, 카테고리 검색..." autocomplete="off"><button type="submit">검색</button>
+    </form>
+    <div class="filters">
+      {% for c,label in [('all','전체'),('OTT','OTT'),('Discord','디스코드'),('Roblox','로블록스'),('VALORANT','발로란트')] %}
+      {% if c=='all' %}{% set href = url_for('shop', q=q) %}{% else %}{% set href = url_for('shop', category=c, q=q) %}{% endif %}
+      <a href="{{ href }}" class="filter {% if category==c %}active{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<section class="container product-grid shop-grid" id="shop-grid">
+{% for p in products %}
+<article class="product-card" data-search="{{ (p.name ~ ' ' ~ p.category ~ ' ' ~ p.subtitle ~ ' ' ~ p.description)|lower }}">
+  <a href="{{ url_for('product_detail', product_id=p.id) }}" class="product-media {{ p.category|lower }}">
+    <img src="{{ product_image(p) }}" alt="{{ product_name(p) }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.style.display='none';this.closest('.product-media').classList.add('media-image-failed');">
+    <span class="tag">{{ category_name(p.category) }}</span><span class="media-glow"></span>
+  </a>
+  <div class="product-content"><div><h3>{{ product_name(p) }}</h3><p>{{ p.subtitle }}</p></div>
+    <div class="product-bottom"><strong>{% if p.price is not none %}{{ '{:,}'.format(p.price) }}원{% else %}<span class="pending">가격 준비중</span>{% endif %}</strong><span class="go">상세보기 →</span></div>
+  </div>
+</article>
+{% else %}
+<div class="empty-state">{% if q %}“{{ q }}”와 일치하는 상품이 없습니다.{% else %}등록된 상품이 없습니다.{% endif %}</div>
+{% endfor %}
+</section>
+<script>
+(function(){
+  const input = document.querySelector('.mobile-search input');
+  const cards = Array.from(document.querySelectorAll('#shop-grid .product-card'));
+  if(!input || !cards.length) return;
+  input.addEventListener('input', function(){
+    const q = this.value.trim().toLowerCase();
+    cards.forEach(card => { card.hidden = q && !card.dataset.search.includes(q); });
+  });
+})();
+</script>
+{% endblock %}

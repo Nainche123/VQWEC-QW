@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Discord</title><desc id="desc">Discord product artwork</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18172e"/><stop offset=".55" stop-color="#5865f2"/><stop offset="1" stop-color="#0a0813"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-opacity=".32"/></filter>
+  </defs>
+  <rect width="800" height="520" rx="42" fill="url(#bg)"/>
+  <circle cx="620" cy="95" r="150" fill="url(#glow)"/>
+  <circle cx="160" cy="420" r="170" fill="#d946ef" opacity=".06"/>
+  <g>
+  <rect x="240" y="110" width="320" height="270" rx="82" fill="#5865f2"/>
+  <path d="M312 190c32-19 58-27 88-28l12 18 12-18c31 1 57 9 88 28 13 35 20 71 17 109-23 18-48 29-74 36l-17-24c14-6 25-11 34-19-34 15-74 21-120 21s-86-6-120-21c9 8 20 13 34 19l-17 24c-26-7-51-18-74-36-3-38 4-74 17-109zm72 92c15 0 27-13 27-29s-12-29-27-29-27 13-27 29 12 29 27 29zm32-29c0 16 12 29 27 29s27-13 27-29-12-29-27-29-27 13-27 29z" fill="#fff"/>
+  <text x="400" y="430" text-anchor="middle" fill="#e9e9ff" font-size="31" font-family="Arial, sans-serif" font-weight="800">DISCORD</text>
+</g>
+</svg>

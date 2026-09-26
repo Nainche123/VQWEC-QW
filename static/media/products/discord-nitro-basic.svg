@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Discord Nitro Basic</title><desc id="desc">Discord Nitro Basic product artwork</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1b1539"/><stop offset=".55" stop-color="#6d4aff"/><stop offset="1" stop-color="#0a0813"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-opacity=".32"/></filter>
+  </defs>
+  <rect width="800" height="520" rx="42" fill="url(#bg)"/>
+  <circle cx="620" cy="95" r="150" fill="url(#glow)"/>
+  <circle cx="160" cy="420" r="170" fill="#d946ef" opacity=".06"/>
+  <g>
+  <rect x="288" y="124" width="224" height="224" rx="62" fill="#151324" stroke="#a58dff" stroke-opacity=".25" stroke-width="4"/>
+  <path d="M343 286l28-126h43l-12 52h49l-28 126h-43l12-52z" fill="#d8ccff"/>
+  <text x="400" y="414" text-anchor="middle" fill="#efe9ff" font-size="37" font-family="Arial, sans-serif" font-weight="800">NITRO BASIC</text>
+</g>
+</svg>

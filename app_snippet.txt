@@ -1,0 +1,380 @@
+# -*- coding: utf-8 -*-
+"""ALL IN ONE DEAL - Shop Website v1.5.0
+Shared SQLite + shared products with the Discord bot.
+"""
+import importlib.util
+import json
+import os
+import secrets
+import sqlite3
+import subprocess
+import re
+from pathlib import Path
+from werkzeug.utils import secure_filename
+import sys
+from datetime import datetime, timezone
+from functools import wraps
+from urllib.parse import urlencode
+
+_REQUIRED = {
+    "flask": "Flask>=3.1,<4",
+    "requests": "requests>=2.32,<3",
+    "dotenv": "python-dotenv>=1.1,<2",
+}
+missing = [spec for mod, spec in _REQUIRED.items() if importlib.util.find_spec(mod) is None]
+if missing:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", *missing])
+
+import requests
+from dotenv import load_dotenv
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
+DEFAULT_SHARED_DIR = os.path.abspath(os.path.join(ROOT_DIR, "data"))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+SHOP_NAME = os.getenv("SHOP_NAME", "ALL IN ONE DEAL")
+WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
+WEB_PORT = int(os.getenv("WEB_PORT", "8090"))
+WEBSITE_URL = os.getenv("WEBSITE_URL", "").rstrip("/")
+SHARED_DATA_DIR = os.path.abspath(os.getenv("SHARED_DATA_DIR", DEFAULT_SHARED_DIR))
+PRODUCTS_FILE = os.path.abspath(os.getenv("SHARED_PRODUCTS_FILE", os.path.join(SHARED_DATA_DIR, "products.json")))
+DB_FILE = os.path.abspath(os.getenv("SHARED_DB_FILE", os.path.join(SHARED_DATA_DIR, "shop.sqlite3")))
+SESSION_SECRET = os.getenv("SESSION_SECRET") or secrets.token_hex(32)
+OWNER_DISCORD_ID = str(os.getenv("OWNER_DISCORD_ID", "0"))
+OAUTH_CLIENT_ID = (os.getenv("DISCORD_OAUTH_CLIENT_ID") or os.getenv("DISCORD_CLIENT_ID") or os.getenv("OAUTH_CLIENT_ID") or os.getenv("CLIENT_ID") or "").strip()
+OAUTH_CLIENT_SECRET = (os.getenv("DISCORD_OAUTH_CLIENT_SECRET") or os.getenv("DISCORD_CLIENT_SECRET") or os.getenv("OAUTH_CLIENT_SECRET") or os.getenv("CLIENT_SECRET") or "").strip()
+OAUTH_REDIRECT_URI = (os.getenv("DISCORD_OAUTH_REDIRECT_URI") or os.getenv("DISCORD_REDIRECT_URI") or os.getenv("OAUTH_REDIRECT_URI") or "").strip()
+SECURITY_WEBHOOK_URL = (os.getenv("SECURITY_WEBHOOK_URL") or os.getenv("LOGIN_WEBHOOK_URL") or os.getenv("DISCORD_LOGIN_WEBHOOK") or os.getenv("WEBHOOK_URL") or "").strip()
+LOG_SECURITY_METADATA = os.getenv("LOG_SECURITY_METADATA", "true").lower() in {"1", "true", "yes", "on"}
+TRUST_PROXY = os.getenv("TRUST_PROXY", "false").lower() in {"1", "true", "yes", "on"}
+
+os.makedirs(SHARED_DATA_DIR, exist_ok=True)
+
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"), static_folder=os.path.join(BASE_DIR, "static"))
+app.secret_key = SESSION_SECRET
+if TRUST_PROXY:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
+
+
+def db():
+    c = sqlite3.connect(DB_FILE, timeout=20)
+    c.row_factory = sqlite3.Row
+    return c
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def init_db():
+    with db() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+              discord_id TEXT PRIMARY KEY,
+              balance INTEGER NOT NULL DEFAULT 0,
+              verified INTEGER NOT NULL DEFAULT 0,
+              total_spent INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS charge_requests (
+              id TEXT PRIMARY KEY,
+              discord_id TEXT NOT NULL,
+              depositor TEXT NOT NULL,
+              amount INTEGER NOT NULL,
+              status TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              ephemeral_token TEXT,
+              application_id TEXT
+            );
+            CREATE TABLE IF NOT EXISTS orders (
+              id TEXT PRIMARY KEY,
+              discord_id TEXT NOT NULL,
+              product_id TEXT NOT NULL,
+              product_name TEXT NOT NULL,
+              price INTEGER NOT NULL,
+              quantity INTEGER NOT NULL DEFAULT 1,
+              claim_code_hash TEXT,
+              claim_code_hint TEXT,
+              created_at TEXT NOT NULL,
+              redeemed_at TEXT,
+              status TEXT NOT NULL DEFAULT 'paid'
+            );
+            CREATE TABLE IF NOT EXISTS inventory (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              discord_id TEXT NOT NULL,
+              item_name TEXT NOT NULL,
+              source_order_id TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS reviews (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              order_id TEXT NOT NULL UNIQUE,
+              discord_id TEXT NOT NULL,
+              rating INTEGER NOT NULL,
+              body TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS settings (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS oauth_states (
+              state TEXT PRIMARY KEY,
+              next_path TEXT NOT NULL,
+              redirect_uri TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS stock_codes (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              product_id TEXT NOT NULL,
+              pool TEXT NOT NULL,
+              code TEXT NOT NULL,
+              used INTEGER NOT NULL DEFAULT 0,
+              used_at TEXT,
+              order_id TEXT
+            );
+            CREATE TABLE IF NOT EXISTS admin_audit (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              action TEXT NOT NULL,
+              product_id TEXT,
+              detail TEXT,
+              created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_stock_codes_pool ON stock_codes(product_id,pool,used,id);
+            """
+        )
+
+
+def _default_products():
+    return {
+        "products": [
+            {"id":"netflix","name":"넷플릭스","category":"OTT","subtitle":"넷플릭스 디지털 상품","description":"가격과 실제 재고는 오너 대시보드에서 설정할 수 있습니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"code","image":"media/products/netflix.webp","enabled":True,"min_qty":1,"step":1,"max_qty":10},
+            {"id":"disneyplus","name":"디즈니+","category":"OTT","subtitle":"디즈니+ 디지털 상품","description":"가격과 실제 재고는 오너 대시보드에서 설정할 수 있습니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"code","image":"media/products/disneyplus.webp","enabled":True,"min_qty":1,"step":1,"max_qty":10},
+            {"id":"spotify","name":"스포티파이 프리미엄","category":"OTT","subtitle":"스포티파이 프리미엄","description":"스포티파이 프리미엄 디지털 상품","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"code","image":"https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/spotify.svg","enabled":True,"min_qty":1,"step":1,"max_qty":10},
+            {"id":"discord-random-decoration","name":"디스코드 랜덤 장식","category":"Discord","subtitle":"랜덤 장식 / 아이템","description":"구매 후 1회용 코드 사용 페이지를 통해 랜덤 아이템을 지급하는 구조입니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"inventory","image":"media/products/discord.webp","enabled":True,"min_qty":1,"step":1,"max_qty":20,"item_pool":["랜덤 장식 A","랜덤 장식 B","랜덤 장식 C","랜덤 장식 D"]},
+            {"id":"discord-nitro-prime","name":"디스코드 니트로 프라임","category":"Discord","subtitle":"Nitro Prime 코드","description":"실제 코드 재고는 대시보드에서 순서대로 추가할 수 있습니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"code","image":"media/products/discord.webp","enabled":True,"min_qty":1,"step":1,"max_qty":20},
+            {"id":"discord-nitro-basic","name":"디스코드 니트로 베이직","category":"Discord","subtitle":"Nitro Basic 코드","description":"실제 코드 재고는 대시보드에서 순서대로 추가할 수 있습니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"code","image":"media/products/discord.webp","enabled":True,"min_qty":1,"step":1,"max_qty":20},
+            {"id":"server-boost","name":"디스코드 서버 부스트","category":"Discord","subtitle":"서버 부스트 · 짝수 수량","description":"수량은 2, 4, 6, 8...처럼 짝수 단위로만 선택할 수 있습니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"boost_order","image":"https://image.pngaaa.com/680/4213680-middle.png","enabled":True,"min_qty":2,"step":2,"max_qty":20},
+            {"id":"robux","name":"로벅스","category":"Roblox","subtitle":"Roblox 상품","description":"Robux 상품","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"manual","image":"media/products/robux.webp","enabled":True,"min_qty":1,"step":1,"max_qty":10},
+            {"id":"valorant-vp","name":"발로란트 VP","category":"VALORANT","subtitle":"VALORANT Points","description":"VALORANT VP 상품","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"manual","image":"media/products/valorant-vp.webp","enabled":True,"min_qty":1,"step":1,"max_qty":10},
+            {"id":"valorant-random-account","name":"발로란트 랜덤 계정","category":"VALORANT","subtitle":"수동 지급 상품 · 준비중","description":"계정형 상품은 수동 검토/지급을 전제로 한 준비용 상품입니다.","price":None,"website_stock":0,"bot_stock":0,"delivery_type":"manual","image":"media/products/valorant-vp.webp","enabled":True,"min_qty":1,"step":1,"max_qty":1}
+        ]
+    }
+
+def _merge_catalog(data):
+    """Ensure the standard catalog is never lost when an older/custom JSON is present."""
+    defaults = _default_products()["products"]
+    current = {str(p.get("id")): p for p in (data.get("products") or []) if isinstance(p, dict) and p.get("id")}
+    changed = False
+    for item in defaults:
+        pid = item["id"]
+        if pid not in current:
+            current[pid] = dict(item)
+            changed = True
+        else:
+            base = current[pid]
+            for key in ("name","category","subtitle","description","delivery_type","image","min_qty","step","max_qty"):
+                if not base.get(key) and item.get(key):
+                    base[key] = item[key]; changed = True
+            if pid == "valorant-vp" and not base.get("enabled"):
+                base["enabled"] = True; changed = True
+            if pid == "valorant-random-account" and "enabled" not in base:
+                base["enabled"] = False; changed = True
+    legacy_image_tokens = ("cdn.jsdelivr.net", "upload.wikimedia.org", "storage.googleapis.com", "discord.com/assets", "clearvision.gitlab.io")
+    legacy_names = {
+        "Netflix": "넷플릭스", "Disney+": "디즈니+", "Spotify Premium": "스포티파이 프리미엄",
+        "Discord 랜덤 장식": "디스코드 랜덤 장식", "Discord Nitro Prime": "디스코드 니트로 프라임",
+        "Discord Nitro Basic": "디스코드 니트로 베이직", "Discord Server Boost": "디스코드 서버 부스트",
+        "Robux": "로벅스", "VALORANT VP": "발로란트 VP", "VALORANT 랜덤 계정": "발로란트 랜덤 계정",
+    }
+    for pid, item in current.items():
+        if item.get("name") in legacy_names:
+            item["name"] = legacy_names[item["name"]]; changed = True
+        img = str(item.get("image") or "")
+        if any(tok in img for tok in legacy_image_tokens) or img.endswith(f"media/products/{pid}.svg"):
+            if pid == "server-boost":
+                item["image"] = "https://image.pngaaa.com/680/4213680-middle.png"
+            else:
+                item["image"] = LOCAL_PRODUCT_IMAGES.get(pid, item.get("image"))
+            changed = True
+    merged = {"products": list(current.values())}
+    return merged, changed
+
+def load_products():
+    candidates = [PRODUCTS_FILE, os.path.join(BASE_DIR, "products.json")]
+    for path in candidates:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and isinstance(data.get("products"), list):
+                merged, changed = _merge_catalog(data)
+                if changed and os.path.abspath(path) == os.path.abspath(PRODUCTS_FILE):
+                    try:
+                        save_products(merged)
+                    except OSError:
+                        pass
+                return merged
+        except (OSError, json.JSONDecodeError):
+            continue
+    defaults = _default_products()
+    try:
+        os.makedirs(os.path.dirname(PRODUCTS_FILE), exist_ok=True)
+        with open(PRODUCTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(defaults, f, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
+    return defaults
+
+def save_products(data):
+    os.makedirs(os.path.dirname(PRODUCTS_FILE), exist_ok=True)
+    tmp = PRODUCTS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, PRODUCTS_FILE)
+
+
+def get_product(product_id):
+    return next((p for p in load_products().get("products", []) if p.get("id") == product_id), None)
+
+LOCAL_PRODUCT_IMAGES = {
+    "netflix": "media/products/netflix.webp",
+    "disneyplus": "media/products/disneyplus.webp",
+    "spotify": "media/products/spotify.webp",
+    "discord-random-decoration": "media/products/discord-random-decoration.webp",
+    "discord-nitro-prime": "media/products/discord-nitro-prime.webp",
+    "discord-nitro-basic": "media/products/discord-nitro-basic.webp",
+    "server-boost": "media/products/server-boost.webp",
+    "robux": "media/products/robux.webp",
+    "valorant-vp": "media/products/valorant-vp.webp",
+    "valorant-random-account": "media/products/valorant-random-account.webp",
+}
+
+DISPLAY_PRODUCT_NAMES = {
+    "netflix": "넷플릭스",
+    "disneyplus": "디즈니+",
+    "spotify": "스포티파이 프리미엄",
+    "discord-random-decoration": "디스코드 랜덤 장식",
+    "discord-nitro-prime": "디스코드 니트로 프라임",
+    "discord-nitro-basic": "디스코드 니트로 베이직",
+    "server-boost": "디스코드 서버 부스트",
+    "robux": "로벅스",
+    "valorant-vp": "발로란트 VP",
+    "valorant-random-account": "발로란트 랜덤 계정",
+}
+
+DISPLAY_CATEGORIES = {
+    "OTT": "OTT", "Discord": "디스코드", "Roblox": "로블록스", "VALORANT": "발로란트"
+}
+
+@app.template_global()
+def product_name(product):
+    pid = str((product or {}).get("id", ""))
+    return DISPLAY_PRODUCT_NAMES.get(pid) or (product or {}).get("name", "상품")
+
+@app.template_global()
+def category_name(category):
+    return DISPLAY_CATEGORIES.get(str(category), str(category))
+
+# Small, direct brand assets. The site uses these only as <img> sources and keeps
+# a bundled local SVG fallback, so a brand host going offline cannot break the card.
+# Netflix / Disney+ / Roblox / VALORANT assets are sourced from Wikimedia Commons;
+# Spotify is from Spotify's official press-center asset; Discord is from Discord's CDN
+# as referenced by its current brand asset page.
+REMOTE_PRODUCT_IMAGES = {
+    "netflix": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Netflix_Logomark.png",
+    "disneyplus": "https://upload.wikimedia.org/wikipedia/commons/2/27/Disney%2B_Original_%282024%29.svg",
+    "spotify": "https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png",
+    "discord-random-decoration": "https://discord.com/assets/cb48d2a8d4991281d7a6a95d2f58195e.svg",
+    "discord-nitro-prime": "https://discord.com/assets/cb48d2a8d4991281d7a6a95d2f58195e.svg",
+    "discord-nitro-basic": "https://discord.com/assets/cb48d2a8d4991281d7a6a95d2f58195e.svg",
+    "robux": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Roblox_Logo.svg",
+    "valorant-vp": "https://upload.wikimedia.org/wikipedia/commons/4/44/Valorant_logo.svg",
+    "valorant-random-account": "https://upload.wikimedia.org/wikipedia/commons/4/44/Valorant_logo.svg",
+}
+
+@app.template_global()
+def product_image(product):
+    product = product or {}
+    image = str(product.get("image") or "").strip()
+    if image.startswith(("http://", "https://", "data:")):
+        return image
+    if image.startswith("/static/"):
+        return image
+    if image:
+        return url_for("static", filename=image.lstrip("/"))
+    pid = str(product.get("id", ""))
+    return url_for("static", filename=LOCAL_PRODUCT_IMAGES.get(pid, "media/products/discord.webp"))
+
+@app.template_global()
+def product_fallback_image(product):
+    pid = str((product or {}).get("id", ""))
+    return url_for("static", filename=LOCAL_PRODUCT_IMAGES.get(pid, "media/products/discord.webp"))
+
+
+
+def get_avatar_url(user, size=128):
+    if not user:
+        return ""
+    avatar = user.get("avatar")
+    uid = user.get("id")
+    if avatar and uid:
+        return f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png?size={size}"
+    # Discord default avatar index is derived from id in normal cases.
+    try:
+        idx = (int(uid) >> 22) % 6
+        return f"https://cdn.discordapp.com/embed/avatars/{idx}.png"
+    except Exception:
+        return "https://cdn.discordapp.com/embed/avatars/0.png"
+
+
+def client_ip():
+    # Prefer trusted proxy headers only when TRUST_PROXY=true.
+    if TRUST_PROXY:
+        for header in ("CF-Connecting-IP", "True-Client-IP", "X-Real-IP", "X-Forwarded-For"):
+            value = request.headers.get(header, "").strip()
+            if value:
+                return value.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def browser_name(user_agent):
+    ua = (user_agent or "").lower()
+    if "edg/" in ua or "edge/" in ua: return "Microsoft Edge"
+    if "opr/" in ua or "opera" in ua: return "Opera"
+    if "whale" in ua: return "Naver Whale"
+    if "firefox/" in ua: return "Firefox"
+    if "samsungbrowser/" in ua: return "Samsung Internet"
+    if "chrome/" in ua and "chromium" not in ua: return "Chrome"
+    if "safari/" in ua and "chrome" not in ua and "android" not in ua: return "Safari"
+    return "Other browser"
+
+
+def send_security_webhook(user):
+    if not SECURITY_WEBHOOK_URL:
+        return False
+    ua = request.headers.get("User-Agent", "unknown")
+    embed = {
+        "title": "🔐 ALL IN ONE DEAL · Discord 로그인",
+        "description": "Discord OAuth 로그인이 완료되었습니다.",
+        "color": 0x8B5CF6,
+        "fields": [
+            {"name": "Discord", "value": f"{user.get('global_name') or user.get('username')} (`{user.get('id')}`)", "inline": False},
+            {"name": "IP", "value": f"`{client_ip()}`", "inline": True},
+            {"name": "브라우저", "value": browser_name(ua), "inline": True},
+            {"name": "User-Agent", "value": f"```{ua[:1000]}```", "inline": False},
+        ],
+        "timestamp": now_iso(),
+        "footer": {"text": SHOP_NAME},
+    }
+    try:
+        resp = requests.post(SECURITY_WEBHOOK_URL, params={"wait": "true"}, json={"username": SHOP_NAME, "embeds": [embed]}, timeout=10)
+        if resp.status_code not in (200, 204):
+            print(f"[SECURITY WEBHOOK] HTTP {resp.status_code}: {resp.text[:1000]}")

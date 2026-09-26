@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}관리자 대시보드 · {{ shop_name }}{% endblock %}
+{% block content %}
+<section class="container dash-head">
+  <div>
+    <span class="eyebrow">오너 전용</span>
+    <h1>관리자 대시보드</h1>
+    <p>상품, 이미지, 가격, 표시 재고, 실제 코드 재고를 한 곳에서 관리합니다.</p>
+  </div>
+  <div class="owner-badge">관리자 · {{ discord_user.global_name or discord_user.username }}</div>
+</section>
+<section class="container owner-notice">
+  <strong>🔒 오너 전용</strong><span>이 화면은 <code>OWNER_DISCORD_ID</code>와 로그인한 Discord 사용자 ID가 일치할 때만 열립니다.</span>
+  {% if not owner_config_valid %}<b class="notice-warn">현재 OWNER_DISCORD_ID가 서버 ID와 같아 보입니다. 반드시 본인의 Discord 사용자 ID를 넣어주세요.</b>{% endif %}
+</section>
+<section class="container kpi-grid">
+  <div class="kpi"><small>등록 상품</small><strong>{{ products|length }}</strong><span>카탈로그</span></div>
+  <div class="kpi"><small>사용자</small><strong>{{ user_count }}</strong><span>공유 DB</span></div>
+  <div class="kpi"><small>미사용 코드</small><strong>{{ total_stock }}</strong><span>웹 + 봇</span></div>
+  <div class="kpi"><small>전체 잔액</small><strong>{{ '{:,}'.format(total_balance) }}원</strong><span>실시간</span></div>
+</section>
+
+<section class="container dash-grid">
+  <div class="panel full owner-create-panel">
+    <div class="panel-title"><div><span class="eyebrow">상품 추가</span><h2>새 상품 만들기</h2></div><span class="pill">한 번에 등록</span></div>
+    <form class="create-product-form" method="post" action="{{ url_for('dashboard_product_add') }}" enctype="multipart/form-data">
+      <div class="admin-fields cols-4">
+        <label>상품명<input name="name" required placeholder="예: 넷플릭스"></label>
+        <label>상품 ID<input name="id" placeholder="비워두면 상품명으로 자동 생성"></label>
+        <label>카테고리<select name="category"><option value="OTT">OTT</option><option value="Discord">디스코드</option><option value="Roblox">로블록스</option><option value="VALORANT">발로란트</option></select></label>
+        <label>가격 (원)<input name="price" inputmode="numeric" placeholder="예: 5000"></label>
+      </div>
+      <div class="admin-fields cols-2">
+        <label>간단 설명<input name="subtitle" placeholder="상품 한줄 설명"></label>
+        <label>상품 이미지<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+      </div>
+      <label class="wide-label">상세 설명<textarea name="description" placeholder="상품 상세 설명"></textarea></label>
+      <div class="create-actions"><label class="check-line"><input type="checkbox" name="enabled" checked> 판매 중으로 등록</label><button class="btn primary" type="submit">+ 상품 추가</button></div>
+    </form>
+  </div>
+
+  <div class="panel full">
+    <div class="panel-title"><div><span class="eyebrow">상품 관리</span><h2>상품 · 가격 · 재고 설정</h2></div><span class="pill">오너만 변경 가능</span></div>
+    <div class="products-admin">
+      {% for p in products %}
+      <form class="admin-product" method="post" action="{{ url_for('dashboard_product_save') }}">
+        <input type="hidden" name="id" value="{{ p.id }}">
+        <div class="admin-product-top">
+          <div class="admin-brand">
+            <div class="admin-image"><img src="{{ product_image(p) }}" alt="{{ p.display_name }}" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('image-error')"></div>
+            <div><b>{{ p.display_name }}</b><small>{{ p.display_category }} · {{ p.delivery_type }}</small></div>
+          </div>
+          <label class="switch"><input type="checkbox" name="enabled" {% if p.enabled %}checked{% endif %}><span></span></label>
+        </div>
+        <div class="admin-fields cols-3">
+          <label>상품명<input name="name" value="{{ p.display_name }}"></label>
+          <label>카테고리<select name="category">{% for c in ['OTT','Discord','Roblox','VALORANT'] %}<option value="{{ c }}" {% if p.category==c %}selected{% endif %}>{{ category_name(c) }}</option>{% endfor %}</select></label>
+          <label>가격 (원)<input name="price" value="{% if p.price is not none %}{{ p.price }}{% endif %}" placeholder="예: 5000"></label>
+          <label>웹 표시 재고<input name="website_stock" type="number" min="0" value="{{ p.website_stock or 0 }}"></label>
+          <label>봇 표시 재고<input name="bot_stock" type="number" min="0" value="{{ p.bot_stock or 0 }}"></label>
+          <label>최소 수량<input name="min_qty" type="number" min="1" value="{{ p.min_qty }}"></label>
+          <label>증가 단위<input name="step" type="number" min="1" value="{{ p.step }}"></label>
+          <label>최대 수량<input name="max_qty" type="number" min="1" value="{{ p.max_qty }}"></label>
+          <label>부제목<input name="subtitle" value="{{ p.subtitle }}"></label>
+        </div>
+        <div class="live-stock"><span>실제 웹 코드 <b>{{ p.live_website_stock }}</b></span><span>실제 봇 코드 <b>{{ p.live_bot_stock }}</b></span>{% if p.id=='server-boost' %}<em>짝수 수량</em>{% endif %}</div>
+        <div class="product-admin-actions">
+          <button class="save-btn" type="submit">저장</button>
+          <label class="upload-mini">이미지 교체<input type="file" name="_ignore" disabled></label>
+        </div>
+      </form>
+      <form class="image-upload-row" method="post" action="{{ url_for('dashboard_product_image') }}" enctype="multipart/form-data">
+        <input type="hidden" name="id" value="{{ p.id }}">
+        <strong>{{ p.display_name }}</strong><input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required><button class="btn ghost" type="submit">이미지 업로드</button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><div><span class="eyebrow">코드 재고</span><h2>직접 코드 넣기</h2></div></div>
+    <form class="stock-form" method="post" action="{{ url_for('dashboard_stock_add') }}">
+      <label>상품<select name="product_id">{% for p in products %}<option value="{{ p.id }}">{{ p.display_name }}</option>{% endfor %}</select></label>
+      <label>재고 위치<select name="pool"><option value="website">웹사이트</option><option value="bot">디스코드 봇</option></select></label>
+      <label>코드<textarea name="codes" placeholder="코드 하나당 한 줄
+AAAA-BBBB
+CCCC-DDDD"></textarea></label>
+      <button class="btn primary full" type="submit">재고 추가</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><div><span class="eyebrow">코드 생성</span><h2>코드 자동 생성</h2></div></div>
+    <form class="stock-form" method="post" action="{{ url_for('dashboard_code_generate') }}">
+      <label>상품<select name="product_id">{% for p in products %}<option value="{{ p.id }}">{{ p.display_name }}</option>{% endfor %}</select></label>
+      <label>재고 위치<select name="pool"><option value="website">웹사이트</option><option value="bot">디스코드 봇</option></select></label>
+      <div class="admin-fields cols-3"><label>접두사<input name="prefix" value="VEXO"></label><label>개수<input name="count" type="number" value="10" min="1" max="500"></label><label>길이<input name="length" type="number" value="12" min="4" max="32"></label></div>
+      <button class="btn primary full" type="submit">코드 생성 → 재고 등록</button>
+    </form>
+  </div>
+
+  <div class="panel full">
+    <div class="panel-title"><div><span class="eyebrow">관리 기록</span><h2>최근 변경 내역</h2></div></div>
+    <div class="audit-list">{% for a in audits %}<div class="audit-row"><b>{{ a.action }}</b><span>{{ a.product_id or '전체' }}</span><small>{{ a.detail or '' }}</small><time>{{ a.created_at[:19].replace('T',' ') }}</time></div>{% else %}<div class="empty-state">기록이 없습니다.</div>{% endfor %}</div>
+  </div>
+</section>
+{% endblock %}

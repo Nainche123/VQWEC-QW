@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ shop_name }}{% endblock %}</title>
+<meta name="description" content="{{ shop_name }} · digital shop">
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="aurora a1"></div><div class="aurora a2"></div><div class="grid-overlay"></div>
+<div class="sakura-petals" aria-hidden="true">
+  <i class="sakura-petal" style="left:6%;--dur:14s;--delay:-3s;--drift:110px;--sway:3.8s"></i>
+  <i class="sakura-petal" style="left:13%;--dur:18s;--delay:-10s;--drift:-80px;--sway:4.6s"></i>
+  <i class="sakura-petal" style="left:21%;--dur:16s;--delay:-6s;--drift:150px;--sway:3.2s"></i>
+  <i class="sakura-petal" style="left:29%;--dur:20s;--delay:-14s;--drift:-120px;--sway:5.1s"></i>
+  <i class="sakura-petal" style="left:38%;--dur:17s;--delay:-4s;--drift:90px;--sway:4.1s"></i>
+  <i class="sakura-petal" style="left:46%;--dur:21s;--delay:-9s;--drift:-145px;--sway:5.5s"></i>
+  <i class="sakura-petal" style="left:54%;--dur:15s;--delay:-12s;--drift:130px;--sway:3.7s"></i>
+  <i class="sakura-petal" style="left:62%;--dur:19s;--delay:-2s;--drift:-105px;--sway:4.9s"></i>
+  <i class="sakura-petal" style="left:69%;--dur:16s;--delay:-8s;--drift:165px;--sway:3.9s"></i>
+  <i class="sakura-petal" style="left:76%;--dur:22s;--delay:-17s;--drift:-130px;--sway:5.7s"></i>
+  <i class="sakura-petal" style="left:83%;--dur:18s;--delay:-5s;--drift:100px;--sway:4.4s"></i>
+  <i class="sakura-petal" style="left:89%;--dur:20s;--delay:-11s;--drift:-95px;--sway:4.8s"></i>
+  <i class="sakura-petal" style="left:95%;--dur:15s;--delay:-7s;--drift:125px;--sway:3.6s"></i>
+</div>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="{{ url_for('home') }}"><span class="brand-mark">♛</span><span><strong>ALL IN ONE</strong><em>DEAL</em></span></a>
+    <nav class="side-nav">
+      {% set active_category = request.args.get('category', 'all') %}
+      <div class="side-section">메뉴</div>
+      <a class="side-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}"><span>⌂</span>홈</a>
+      <a class="side-link {% if request.endpoint in ['shop','product_detail'] and active_category == 'all' %}active{% endif %}" href="{{ url_for('shop') }}"><span>▦</span>샵</a>
+      <div class="side-section">카테고리</div>
+      <a class="side-link {% if active_category == 'all' and request.endpoint == 'shop' %}active{% endif %}" href="{{ url_for('shop', category='all') }}"><span>✦</span>전체 상품</a>
+      <a class="side-link {% if active_category == 'OTT' %}active{% endif %}" href="{{ url_for('shop', category='OTT') }}"><span class="dot ott"></span>OTT</a>
+      <a class="side-link {% if active_category == 'Discord' %}active{% endif %}" href="{{ url_for('shop', category='Discord') }}"><span class="dot discord"></span>디스코드</a>
+      <a class="side-link {% if active_category == 'Roblox' %}active{% endif %}" href="{{ url_for('shop', category='Roblox') }}"><span class="dot roblox"></span>로블록스</a>
+      <a class="side-link {% if active_category == 'VALORANT' %}active{% endif %}" href="{{ url_for('shop', category='VALORANT') }}"><span class="dot valorant"></span>발로란트</a>
+      <div class="side-section">계정</div>
+      {% if discord_user %}
+      <a class="side-link {% if request.endpoint == 'account' %}active{% endif %}" href="{{ url_for('account') }}"><span>◎</span>내 정보</a>
+      <a class="side-link {% if request.endpoint == 'redeem' %}active{% endif %}" href="{{ url_for('redeem') }}"><span>◇</span>코드 사용</a>
+      {% else %}
+      <a class="side-link {% if request.endpoint == 'verify' %}active{% endif %}" href="{{ url_for('verify') }}"><span>◉</span>디스코드 로그인</a>
+      {% endif %}
+      {% if is_owner %}
+      <div class="side-section owner-section">관리자</div>
+      <a class="side-link owner-link {% if request.endpoint == 'owner_dashboard' %}active{% endif %}" href="{{ url_for('owner_dashboard') }}"><span>♛</span>대시보드</a>
+      {% endif %}
+    </nav>
+    <div class="side-footer"><span class="status-dot"></span><div><b>{{ shop_name }}</b><small>온라인 스토어</small></div></div>
+  </aside>
+  <div class="page-area">
+    <header class="topbar">
+      <div class="mobile-brand"><span>♛</span> ALL IN ONE <em>DEAL</em></div>
+      <form class="top-search" action="{{ url_for('shop') }}" method="get" role="search">
+  <button type="submit" aria-label="상품 검색">⌕</button>
+  <input name="q" value="{{ search_query }}" placeholder="상품을 검색해보세요..." autocomplete="off" aria-label="상품 검색어">
+  {% if search_query %}<a class="search-clear" href="{{ url_for('shop') }}" aria-label="검색어 지우기">×</a>{% endif %}
+</form>
+      <div class="top-actions">
+      {% if discord_user %}
+        <a class="profile-pill" href="{{ url_for('account') }}"><img src="{{ avatar_url }}" alt=""><span><strong>{{ discord_user.global_name or discord_user.username }}</strong><small>@{{ discord_user.username }}</small></span><b>{{ '{:,}'.format(balance) }}원</b></a>
+        <a class="logout-btn" href="{{ url_for('logout') }}">로그아웃</a>
+      {% else %}
+        <a class="login-btn" href="{{ url_for('oauth_start') }}"><span>◉</span> 디스코드 로그인</a>
+      {% endif %}
+      </div>
+    </header>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="container flash-stack">{% for category,msg in messages %}<div class="flash {{ category }}">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    <main>{% block content %}{% endblock %}</main>
+    <footer class="footer"><div><b>♛ ALL IN ONE DEAL</b><span>빠르고 간편한 디지털 스토어</span></div><div><a href="{{ url_for('privacy') }}">개인정보 처리 안내</a><span>© 2026 ALL IN ONE DEAL</span></div></footer>
+  </div>
+</div>
+</body>
+</html>

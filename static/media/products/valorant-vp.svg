@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">VALORANT VP</title><desc id="desc">VALORANT VP product artwork</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3a0b1c"/><stop offset=".55" stop-color="#e94563"/><stop offset="1" stop-color="#0a0813"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-opacity=".32"/></filter>
+  </defs>
+  <rect width="800" height="520" rx="42" fill="url(#bg)"/>
+  <circle cx="620" cy="95" r="150" fill="url(#glow)"/>
+  <circle cx="160" cy="420" r="170" fill="#d946ef" opacity=".06"/>
+  <g>
+  <path d="M291 338L400 130l109 208h-54l-55-106-55 106z" fill="#fff"/>
+  <path d="M400 204l55 105h-110z" fill="#e94563"/>
+  <path d="M330 360h140" stroke="#e94563" stroke-width="8" stroke-linecap="round"/>
+  <text x="400" y="440" text-anchor="middle" fill="#ffe2e8" font-size="43" font-family="Arial, sans-serif" font-weight="900">VALORANT VP</text>
+</g>
+</svg>

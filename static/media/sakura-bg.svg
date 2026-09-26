@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 820" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="bgFade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#090710"/>
+      <stop offset="0.52" stop-color="#100a1b"/>
+      <stop offset="1" stop-color="#07060d"/>
+    </linearGradient>
+    <radialGradient id="lightA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1100 80) rotate(130) scale(520 430)">
+      <stop stop-color="#B58CFF" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#B58CFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lightB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(270 700) rotate(-20) scale(460 350)">
+      <stop stop-color="#E9A9CF" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#E9A9CF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1440" height="820" fill="url(#bgFade)"/>
+  <rect width="1440" height="820" fill="url(#lightA)"/>
+  <rect width="1440" height="820" fill="url(#lightB)"/>
+  <!-- Fine decorative branch -->
+  <path d="M1398 -20C1320 48 1253 105 1193 171C1137 232 1090 282 1000 316C908 350 840 353 754 410" stroke="#8d6a83" stroke-opacity=".18" stroke-width="2"/>
+  <path d="M1265 88C1227 138 1197 176 1160 211" stroke="#b687a6" stroke-opacity=".14" stroke-width="2"/>
+  <path d="M1112 283C1065 264 1017 240 981 206" stroke="#9b7895" stroke-opacity=".13" stroke-width="2"/>
+  <path d="M754 410C711 430 672 461 640 504" stroke="#9b7895" stroke-opacity=".11" stroke-width="2"/>
+  <!-- Blossom clusters -->
+  <g opacity=".55">
+    <g transform="translate(1218 122)">
+      <circle cx="0" cy="-17" r="12" fill="#E9B1D0"/><circle cx="17" cy="0" r="12" fill="#F0BED8"/>
+      <circle cx="0" cy="17" r="12" fill="#E9B1D0"/><circle cx="-17" cy="0" r="12" fill="#F0BED8"/>
+      <circle cx="0" cy="0" r="7" fill="#D29AB9"/>
+    </g>
+    <g transform="translate(1070 262) scale(.72)">
+      <circle cx="0" cy="-17" r="12" fill="#E7AFCE"/><circle cx="17" cy="0" r="12" fill="#F2C5DB"/>
+      <circle cx="0" cy="17" r="12" fill="#E7AFCE"/><circle cx="-17" cy="0" r="12" fill="#F2C5DB"/>
+      <circle cx="0" cy="0" r="7" fill="#D29AB9"/>
+    </g>
+    <g transform="translate(180 700) scale(.62)">
+      <circle cx="0" cy="-17" r="12" fill="#E7AFCE"/><circle cx="17" cy="0" r="12" fill="#F2C5DB"/>
+      <circle cx="0" cy="17" r="12" fill="#E7AFCE"/><circle cx="-17" cy="0" r="12" fill="#F2C5DB"/>
+      <circle cx="0" cy="0" r="7" fill="#D29AB9"/>
+    </g>
+  </g>
+</svg>
